@@ -21,23 +21,27 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 		outbound: outbound,
 	}
 }
+type TCPTransportOpts struct {
+	ListenAddress string 
+	HandshakeFunc HandshakeFunc
+	Decoder 			Decoder
+
+}
 
 type TCPTransport struct {
-	listenAddress string
-	listener      net.Listener
-	shakeHands	 HandshakeFunc
-	decoder 		Decoder
-	mu    sync.RWMutex
-	peers map[net.Addr]Peer
+	TCPTransportOpts 	
+	listener      		net.Listener
+	mu    						sync.RWMutex
+	peers 						map[net.Addr]Peer
 }
 
 
-func NewTCPTransport(listenAddr string) *TCPTransport {
+func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
-		shakeHands: NOPHandshakeFunc,
-		listenAddress: listenAddr,
+		TCPTransportOpts: opts,
 	}
 }
+
 
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
