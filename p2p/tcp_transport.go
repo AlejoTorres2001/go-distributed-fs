@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 // TCPPeer represents a remote node over a TCP connection.
@@ -92,10 +93,13 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	//Read loop
 	for {
 		err = t.Decoder.Decode(conn,&rpc) 
-		if err != nil {
-			fmt.Printf("TCP Error reading message: %s\n", err)
-			return
-		}
+		if err == net.ErrClosed || (err != nil && strings.Contains(err.Error(), "use of closed network connection")) {
+			return 
+	}
+	if err != nil {
+		fmt.Printf("TCP Error decoding the message: %+v\n", err)
+		continue // Skip to next iteration without breaking the loop
+}
 		rpc.From = conn.RemoteAddr()
 		t.rpcchan <- rpc
 		fmt.Printf("TCP Received message: %+v\n", rpc)
