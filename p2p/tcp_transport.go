@@ -45,7 +45,7 @@ func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
-	t.listener, err = net.Listen("tcp", t.listenAddress)
+	t.listener, err = net.Listen("tcp", t.ListenAddress)
 	if err != nil {
 		return err
 	}
@@ -67,17 +67,18 @@ type Temp struct {}
 func (t *TCPTransport) handleConn(conn net.Conn) {
 	peer := NewTCPPeer(conn, true)
 
-	if err := t.shakeHands(peer); err != nil {
-		fmt.Printf("Error during handshake: %s\n", err)
+	if err := t.HandshakeFunc(peer); err != nil {
+		fmt.Printf("TCP Error during handshake: %s\n", err)
 		conn.Close()
 		return
 	}
 
-	msg := &Temp{}
+	msg := &Message{}
 	for {
-		if err := t.decoder.Decode(conn,msg) ; err != nil {
+		if err := t.Decoder.Decode(conn,msg) ; err != nil {
 			fmt.Printf("TCP Error decoding message: %s\n", err)
 			continue
 		}
+		fmt.Printf("TCP Received message: %+v\n", msg)
 	}
 }
