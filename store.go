@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
@@ -11,10 +12,10 @@ import (
 )
 type PathKey struct	{
 	PathName string
-	Original string
+	FileName string
 }
-func (p PathKey) Filename() string {
-	return fmt.Sprintf("%s/%s",p.PathName,p.Original)
+func (p PathKey) FullPath() string {
+	return fmt.Sprintf("%s/%s",p.PathName,p.FileName)
 }
 func CASPathTransformFunc(key string) PathKey {
 	hash := sha1.Sum([]byte(key))
@@ -31,7 +32,7 @@ func CASPathTransformFunc(key string) PathKey {
 	}
 	return PathKey{
 		PathName: strings.Join(paths,"/"),
-		Original: hashStr,
+		FileName: hashStr,
 	}
 }
 type PathTransfromFunc func(string) PathKey
@@ -48,6 +49,22 @@ func NewStore(opts StoreOpts) *Store {
 		StoreOpts: opts,
 	}
 }
+func (s *Store) Read(key string) (io.Reader,error) {
+	f,err := s.readStream(key)
+	if err != nil {
+		return nil,err
+	}
+	defer f.Close()
+	buf := new(bytes.Buffer)
+	_,err = io.Copy(buf,f)
+	return buf,err
+}
+func (s *Store) readStream(key string) (io.ReadCloser,error) {
+	pathKey := s.PathTransfromFunc(key)
+	fullPath := pathKey.FullPath()
+	return os.Open(fullPath)
+
+}
 func (s *Store) writeStream(key string, r io.Reader) error {
 	pathKey :=  s.PathTransfromFunc(key)
 	if err := os.MkdirAll(pathKey.PathName,os.ModePerm); err != nil {
@@ -55,7 +72,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	}
 
 
-	pathAndFilename := pathKey.Filename()
+	pathAndFilename := pathKey.FullPath()
 	f,err := os.Create(pathAndFilename)
 	if err != nil {
 		return err
