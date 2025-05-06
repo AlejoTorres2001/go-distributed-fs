@@ -6,7 +6,7 @@ import (
 	"github.com/AlejoTorres2001/go-distributed-fs/p2p"
 )
 
-func OnPeer(p2p.Peer) error { 
+func OnPeer(p p2p.Peer) error { 
 	fmt.Println("doing something outside tcp transport")
 	return nil 
 }
