@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -76,16 +77,19 @@ func (p *PathKey) FirstPathName() string {
 }
 func (s *Store) Has(key string) bool {
 	pathKey := s.PathTransfromFunc(key)
-	fullPath := pathKey.FullPath()
-	_, err := os.Stat(s.Root + "/" + fullPath)
-	return err != os.ErrNotExist
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
+	_, err := os.Stat(fullPathWithRoot)
+	
+	return !errors.Is(err, os.ErrNotExist)
+
 }
 func (s *Store) Delete(key string) error {
 	pathKey := s.PathTransfromFunc(key)
+	firstPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FirstPathName())
 	defer func() {
 		log.Printf("deleted [%s] from disk", pathKey.FileName)
 	}()
-	return os.RemoveAll(s.Root + "/" + pathKey.FirstPathName())
+	return os.RemoveAll(firstPathWithRoot)
 }
 func (s *Store) Read(key string) (io.Reader, error) {
 	f, err := s.readStream(key)
@@ -99,18 +103,22 @@ func (s *Store) Read(key string) (io.Reader, error) {
 }
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	pathKey := s.PathTransfromFunc(key)
-	fullPath := pathKey.FullPath()
-	return os.Open(s.Root + "/" + fullPath)
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root,pathKey.FullPath())
+	return os.Open(fullPathWithRoot)
 
 }
 func (s *Store) writeStream(key string, r io.Reader) error {
+
 	pathKey := s.PathTransfromFunc(key)
-	if err := os.MkdirAll(s.Root + "/" + pathKey.PathName, os.ModePerm); err != nil {
+	pathNameWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.PathName)
+
+	if err := os.MkdirAll(pathNameWithRoot, os.ModePerm); err != nil {
 		return err
 	}
 
-	pathAndFilename := pathKey.FullPath()
-	f, err := os.Create(s.Root + "/" + pathAndFilename)
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
+
+	f, err := os.Create(fullPathWithRoot)
 	if err != nil {
 		return err
 	}
@@ -118,6 +126,6 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("written (%d) bytes to disk: %s", n, pathAndFilename)
+	log.Printf("written (%d) bytes to disk: %s", n, fullPathWithRoot)
 	return nil
 }
