@@ -11,51 +11,22 @@ import (
 	"os"
 	"strings"
 )
+
 const defaultRootFolderName = "dfs"
-type PathKey struct {
-	PathName string
-	FileName string
-}
-
-func (p PathKey) FullPath() string {
-	return fmt.Sprintf("%s/%s", p.PathName, p.FileName)
-}
-func CASPathTransformFunc(key string) PathKey {
-	hash := sha1.Sum([]byte(key))
-	hashStr := hex.EncodeToString(hash[:])
-
-	blockSize := 5
-	sliceLen := len(hashStr) / blockSize
-
-	paths := make([]string, sliceLen)
-	for i := 0; i < sliceLen; i++ {
-		from, to := i*blockSize, (i*blockSize)+blockSize
-		paths[i] = hashStr[from:to]
-
-	}
-	return PathKey{
-		PathName: strings.Join(paths, "/"),
-		FileName: hashStr,
-	}
-}
-
-type PathTransfromFunc func(string) PathKey
-
-var DefaultPathTransformFunc = func(key string) PathKey {
-	return PathKey{
-		PathName: key,
-		FileName: key,
-	}
-}
 
 type StoreOpts struct {
 	//Root is the folder name of the root, containing all the files of the system
-	Root 							string
+	Root              string
 	PathTransfromFunc PathTransfromFunc
 }
 type Store struct {
 	StoreOpts
 }
+type PathKey struct {
+	PathName string
+	FileName string
+}
+type PathTransfromFunc func(string) PathKey
 
 func NewStore(opts StoreOpts) *Store {
 	if opts.PathTransfromFunc == nil {
@@ -67,29 +38,6 @@ func NewStore(opts StoreOpts) *Store {
 	return &Store{
 		StoreOpts: opts,
 	}
-}
-func (p *PathKey) FirstPathName() string {
-	paths := strings.Split(p.PathName,"/")
-	if len(paths) == 0 {
-		return ""
-	}
-	return paths[0]
-}
-func (s *Store) Has(key string) bool {
-	pathKey := s.PathTransfromFunc(key)
-	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
-	_, err := os.Stat(fullPathWithRoot)
-	
-	return !errors.Is(err, os.ErrNotExist)
-
-}
-func (s *Store) Delete(key string) error {
-	pathKey := s.PathTransfromFunc(key)
-	firstPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FirstPathName())
-	defer func() {
-		log.Printf("deleted [%s] from disk", pathKey.FileName)
-	}()
-	return os.RemoveAll(firstPathWithRoot)
 }
 func (s *Store) Read(key string) (io.Reader, error) {
 	f, err := s.readStream(key)
@@ -103,7 +51,7 @@ func (s *Store) Read(key string) (io.Reader, error) {
 }
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
 	pathKey := s.PathTransfromFunc(key)
-	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root,pathKey.FullPath())
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
 	return os.Open(fullPathWithRoot)
 
 }
@@ -128,4 +76,58 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	}
 	log.Printf("written (%d) bytes to disk: %s", n, fullPathWithRoot)
 	return nil
+}
+func (s *Store) Delete(key string) error {
+	pathKey := s.PathTransfromFunc(key)
+	firstPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FirstPathName())
+	defer func() {
+		log.Printf("deleted [%s] from disk", pathKey.FileName)
+	}()
+	return os.RemoveAll(firstPathWithRoot)
+}
+func (p PathKey) FullPath() string {
+	return fmt.Sprintf("%s/%s", p.PathName, p.FileName)
+}
+func (p *PathKey) FirstPathName() string {
+	paths := strings.Split(p.PathName, "/")
+	if len(paths) == 0 {
+		return ""
+	}
+	return paths[0]
+}
+func (s *Store) Has(key string) bool {
+	pathKey := s.PathTransfromFunc(key)
+	fullPathWithRoot := fmt.Sprintf("%s/%s", s.Root, pathKey.FullPath())
+	_, err := os.Stat(fullPathWithRoot)
+
+	return !errors.Is(err, os.ErrNotExist)
+
+}
+func (s *Store) ClearAll() error {
+	return os.RemoveAll(s.Root)
+}
+func CASPathTransformFunc(key string) PathKey {
+	hash := sha1.Sum([]byte(key))
+	hashStr := hex.EncodeToString(hash[:])
+
+	blockSize := 5
+	sliceLen := len(hashStr) / blockSize
+
+	paths := make([]string, sliceLen)
+	for i := 0; i < sliceLen; i++ {
+		from, to := i*blockSize, (i*blockSize)+blockSize
+		paths[i] = hashStr[from:to]
+
+	}
+	return PathKey{
+		PathName: strings.Join(paths, "/"),
+		FileName: hashStr,
+	}
+}
+
+var DefaultPathTransformFunc = func(key string) PathKey {
+	return PathKey{
+		PathName: key,
+		FileName: key,
+	}
 }
