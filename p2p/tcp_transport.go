@@ -1,9 +1,10 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"net"
-	"strings"
 )
 
 // TCPPeer represents a remote node over a TCP connection.
@@ -59,18 +60,18 @@ func (t *TCPTransport) ListenAndAccept() error {
 		return err
 	}
 	go t.startAcceptLoop()
+	log.Printf("TCP Transport Listening on %s\n", t.ListenAddress)
 	return nil
 }
 
 func (t *TCPTransport) startAcceptLoop() error {
 	for {
 		conn, err := t.listener.Accept()
+		if errors.Is(err, net.ErrClosed) {
+			return nil
+		}
 		if err != nil {
 			fmt.Printf("TCP Error accepting connection: %s\n", err)
-			if strings.Contains(err.Error(), "use of closed network connection") {
-				return nil // Exit the loop if listener is closed
-			}
-			continue // Skip to next iteration on other errors
 		}
 		fmt.Printf(" new incoming connection %+v\n", conn)
 		go t.handleConn(conn)
@@ -98,9 +99,6 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 	//Read loop
 	for {
 		err = t.Decoder.Decode(conn, &rpc)
-		if err == net.ErrClosed || (err != nil && strings.Contains(err.Error(), "use of closed network connection")) {
-			return
-		}
 		if err != nil {
 			fmt.Printf("TCP Error decoding the message: %+v\n", err)
 			continue // Skip to next iteration without breaking the loop
@@ -109,4 +107,8 @@ func (t *TCPTransport) handleConn(conn net.Conn) {
 		t.rpcchan <- rpc
 		fmt.Printf("TCP Received message: %+v\n", rpc)
 	}
+}
+//Close implements de Transport interface
+func (t *TCPTransport) Close() error {
+	return t.listener.Close()
 }
