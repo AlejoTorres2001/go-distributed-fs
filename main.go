@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"log"
+	"time"
+
 	"github.com/AlejoTorres2001/go-distributed-fs/p2p"
 )
 
@@ -29,6 +32,13 @@ func main() {
 	go func() {
 		log.Fatal(s1.Start())
 	}()
+	time.Sleep(time.Second * 1)
 
-	s2.Start()
+	go s2.Start()
+	time.Sleep(time.Second * 1)
+
+	data := bytes.NewReader([]byte("personal data"))
+	s2.StoreData("mydata",data)
+
+	select {}
 }

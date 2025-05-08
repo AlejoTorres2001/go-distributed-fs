@@ -10,33 +10,23 @@ import (
 // TCPPeer represents a remote node over a TCP connection.
 type TCPPeer struct {
 	// underlying connection to the peer
-	conn net.Conn
+	net.Conn
 	// if we dial and retrieve a conn -> outbound == true
 	// if we accepts and retrieve a conn -> outbound == false
 	outbound bool
 }
-//RemoteAddr implements the Peer interface, which returns the remote address of the peer.
-func (p *TCPPeer) RemoteAddr() net.Addr {
-	return p.conn.RemoteAddr()
-}
 
-func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
+
+func NewTCPPeer(conn net.Conn , outbound bool) *TCPPeer {
 	return &TCPPeer{
-		conn:     conn,
+		Conn: conn,
 		outbound: outbound,
 	}
 }
 
 func (p *TCPPeer) Send(data []byte) error {
-	_, err := p.conn.Write(data)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-// Close implements the Peer interface, which closes the connection to the peer.
-func (p *TCPPeer) Close() error {
-	return p.conn.Close()
+	_, err := p.Conn.Write(data)
+	return err
 }
 
 type TCPTransportOpts struct {
@@ -120,10 +110,6 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	}
 }
 
-// Close implements de Transport interface
-func (t *TCPTransport) Close() error {
-	return t.listener.Close()
-}
 
 // Dial implements the Transport interface
 func (t *TCPTransport) Dial(addr string) error {
@@ -132,5 +118,12 @@ func (t *TCPTransport) Dial(addr string) error {
 		return err
 	}
 	go t.handleConn(conn, true)
+	return nil
+}
+
+func (t *TCPTransport) Close() error {
+	if t.listener != nil {
+		return t.listener.Close()
+	}
 	return nil
 }
