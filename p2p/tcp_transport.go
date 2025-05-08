@@ -15,6 +15,10 @@ type TCPPeer struct {
 	// if we accepts and retrieve a conn -> outbound == false
 	outbound bool
 }
+//RemoteAddr implements the Peer interface, which returns the remote address of the peer.
+func (p *TCPPeer) RemoteAddr() net.Addr {
+	return p.conn.RemoteAddr()
+}
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
@@ -23,6 +27,13 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+func (p *TCPPeer) Send(data []byte) error {
+	_, err := p.conn.Write(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 // Close implements the Peer interface, which closes the connection to the peer.
 func (p *TCPPeer) Close() error {
 	return p.conn.Close()

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/AlejoTorres2001/go-distributed-fs/p2p"
 )
@@ -15,8 +16,11 @@ type FileServerOpts struct {
 }
 type FileServer struct {
 	FileServerOpts
-	store  *Store
-	quitch chan struct{}
+
+	peerLock sync.Mutex
+	peers    map[string]p2p.Peer
+	store    *Store
+	quitch   chan struct{}
 }
 
 func NewFileServer(opts FileServerOpts) *FileServer {
@@ -34,7 +38,17 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 		FileServerOpts: opts,
 		store:          NewStore(StoreOpts),
 		quitch:         make(chan struct{}),
+		peers:          make(map[string]p2p.Peer),
 	}
+}
+func (s *FileServer) OnPeer(p p2p.Peer) error {
+	s.peerLock.Lock()
+	defer s.peerLock.Unlock()
+
+	s.peers[p.RemoteAddr().String()] = p
+	log.Printf("Connected to Remote: %s\n", p.RemoteAddr())
+	return nil
+
 }
 func (s *FileServer) Stop() {
 	close(s.quitch)
