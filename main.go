@@ -2,29 +2,31 @@ package main
 
 import (
 	"log"
-	"time"
 	"github.com/AlejoTorres2001/go-distributed-fs/p2p"
 )
 
-func main() {
+func makeServer(listenAddr string, nodes ...string) *FileServer {
 	tcpopts := p2p.TCPTransportOpts{
-		ListenAddress: ":8080",
+		ListenAddress: listenAddr,
 		HandshakeFunc: p2p.NOPHandshakeFunc,
 		Decoder:       p2p.DefaultDecoder{},
 	}
 	tcpTransport := p2p.NewTCPTransport(tcpopts)
 	fileServerOpts := FileServerOpts{
-		StorageRoot:       "8080_network",
+		StorageRoot:       listenAddr + "_network",
 		PathTransfromFunc: DefaultPathTransformFunc,
 		Transport:         tcpTransport,
+		BootstrapNodes:    nodes,
 	}
-	fileServer := NewFileServer(fileServerOpts)
+	return NewFileServer(fileServerOpts)
+}
+func main() {
+	s1 := makeServer(":8080", "")
+	s2 := makeServer(":8081", ":8080")
 
 	go func() {
-		time.Sleep(5 * time.Second)
-		fileServer.Stop()
+		log.Fatal(s1.Start())
 	}()
-	if err := fileServer.Start(); err != nil {
-		log.Fatal(err)
-	}
+
+	s2.Start()
 }
