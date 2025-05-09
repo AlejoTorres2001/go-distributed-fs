@@ -17,7 +17,7 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 	tcpTransport := p2p.NewTCPTransport(tcpopts)
 	fileServerOpts := FileServerOpts{
 		StorageRoot:       listenAddr + "_network",
-		PathTransfromFunc: DefaultPathTransformFunc,
+		PathTransfromFunc: CASPathTransformFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    nodes,
 	}
@@ -32,10 +32,10 @@ func main() {
 	go func() {
 		log.Fatal(s1.Start())
 	}()
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Second * 3)
 
 	go s2.Start()
-	time.Sleep(time.Second * 1)
+	time.Sleep(time.Second * 3)
 
 	data := bytes.NewReader([]byte("personal data"))
 	s2.StoreData("mydata",data)
